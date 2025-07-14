@@ -100,10 +100,10 @@ flowchart TD
 ### バックエンド（Python / Django）
 
 - `Django==5.1.4`
-- `django-ninja==1.3.0`
-- `django-ninja-extra==0.21.3`
+- `django-ninja==1.4.3`
+- `django-ninja-extra==0.30.1`
 - `django-ninja-jwt==5.3.0`
-- `psycopg2-binary==2.9.9`
+- `psycopg[binary]==3.2.3`
 - `django-redis==5.4.0`
 - `celery[redis]==5.4.0`
 - `django-celery-beat==2.7.0`
