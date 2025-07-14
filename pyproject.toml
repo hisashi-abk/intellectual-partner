@@ -1,0 +1,324 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "intellectual-partner"
+version = "1.0.0"
+description = "学習支援アプリケーション「知的な伴走者」"
+authors = [{ name = "Developer", email = "dev@example.com" }]
+requires-python = ">=3.11"
+dependencies = [
+    "Django>=5.1.4",
+    "django-ninja>=1.4.3",
+    "python-decouple>=3.8",
+    "psycopg[binary]>=3.2.3",
+    "redis>=5.2.0",
+    "celery>=5.4.0",
+    "sentry-sdk>=2.19.0",
+    "numpy>=1.24.0",
+    "pandas>=2.2.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.13.0",
+    "django-stubs>=5.1.0",
+    "types-python-decouple>=3.8",
+    "pytest>=8.3.4",
+    "pytest-django>=4.9.0",
+    "black>=24.10.0",
+    "isort>=5.13.2",
+    "flake8>=7.1.1",
+    "pre-commit>=3.8.0",
+    "django-debug-toolbar>=4.4.6",
+    "ipython>=8.30.0",
+    "factory-boy>=3.3.1",
+    "faker>=33.1.0",
+    "coverage>=7.6.9",
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.myvenv
+  | build
+  | dist
+  | migrations
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+line_length = 88
+skip = ["migrations"]
+known_django = ["django"]
+known_first_party = [
+    "accounts",
+    "goals",
+    "tickets",
+    "emotions",
+    "journal",
+    "analytics",
+    "teacher_support",
+    "notifications",
+    "gamification",
+    "core",
+]
+sections = [
+    "FUTURE",
+    "STDLIB",
+    "THIRDPARTY",
+    "DJANGO",
+    "FIRSTPARTY",
+    "LOCALFOLDER",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--reuse-db",
+    "--nomigrations",
+    "--cov=.",
+    "--cov-report=html",
+    "--cov-report=term-missing",
+    "--cov-fail-under=80",
+]
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+[tool.coverage.run]
+source = "."
+omit = [
+    "*/migrations/*",
+    "*/venv/*",
+    "*/env/*",
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "manage.py",
+    "*/settings/*",
+    "*/wsgi.py",
+    "*/asgi.py",
+    "*/urls.py",
+    "*/admin.py",
+    "*/apps.py",
+    "*/conftest.py",
+    "setup.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = true
+disallow_any_generics = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+strict_optional = true
+show_error_codes = true
+plugins = ["mypy_django_plugin.main"]
+
+[[tool.mypy.overrides]]
+module = [
+    "decouple",
+    "decouple.*",
+    "sentry_sdk",
+    "sentry_sdk.*",
+    "celery",
+    "celery.*",
+    "redis",
+    "redis.*",
+    "channels",
+    "channels.*",
+    "twilio",
+    "twilio.*",
+    "debug_toolbar",
+    "debug_toolbar.*",
+    "django_extensions",
+    "django_extensions.*",
+    "django_silk",
+    "django_silk.*",
+    "numpy",
+    "numpy.*",
+    "pandas",
+    "pandas.*",
+    "scipy",
+    "scipy.*",
+    "sklearn",
+    "sklearn.*",
+    "matplotlib",
+    "matplotlib.*",
+    "seaborn",
+    "seaborn.*",
+    "plotly",
+    "plotly.*",
+    "textblob",
+    "textblob.*",
+    "vaderSentiment",
+    "vaderSentiment.*",
+    "janome",
+    "janome.*",
+    "faker",
+    "faker.*",
+    "factory_boy",
+    "factory_boy.*",
+    "pytest",
+    "pytest.*",
+    "pytest_django",
+    "pytest_django.*",
+    "coverage",
+    "coverage.*",
+    "PIL",
+    "PIL.*",
+    "requests",
+    "requests.*",
+    "httpx",
+    "httpx.*",
+    "django_ninja",
+    "django_ninja.*",
+    "django_ninja_extra",
+    "django_ninja_extra.*",
+    "django_ninja_jwt",
+    "django_ninja_jwt.*",
+    "pydantic",
+    "pydantic.*",
+    "django_cors_headers",
+    "django_cors_headers.*",
+    "django_redis",
+    "django_redis.*",
+    "django_celery_beat",
+    "django_celery_beat.*",
+    "django_celery_results",
+    "django_celery_results.*",
+    "channels_redis",
+    "channels_redis.*",
+    "daphne",
+    "daphne.*",
+    "django_anymail",
+    "django_anymail.*",
+    "django_filter",
+    "django_filter.*",
+    "orjson",
+    "orjson.*",
+    "python_multipart",
+    "python_multipart.*",
+    "python_magic",
+    "python_magic.*",
+    "gunicorn",
+    "gunicorn.*",
+    "whitenoise",
+    "whitenoise.*",
+    "django_health_check",
+    "django_health_check.*",
+    "gevent",
+    "gevent.*",
+    "pre_commit",
+    "pre_commit.*",
+    "black",
+    "black.*",
+    "isort",
+    "isort.*",
+    "flake8",
+    "flake8.*",
+    "django_ratelimit",
+    "django_ratelimit.*",
+    "django_environ",
+    "django_environ.*",
+    "django_guardian",
+    "django_guardian.*",
+    "django_structlog",
+    "django_structlog.*",
+    "ipython",
+    "ipython.*",
+    "python_dotenv",
+    "python_dotenv.*",
+    "joblib",
+    "joblib.*",
+    "PyJWT",
+    "PyJWT.*",
+    "cryptography",
+    "cryptography.*",
+    "pytz",
+    "pytz.*",
+    "dateutil",
+    "dateutil.*",
+    "python_dateutil",
+    "python_dateutil.*",
+]
+ignore_missing_imports = true
+
+[tool.flake8]
+max-line-length = 88
+exclude = [".git", "__pycache__", "build", "dist", "migrations", "venv", "env"]
+ignore = [
+    "E203", # whitespace before ':'
+    "E501", # line too long
+    "W503", # line break before binary operator
+    "F401", # imported but unused
+]
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
+
+[tool.pylint]
+load-plugins = ["pylint_django"]
+django-settings-module = "config.settings"
+
+[tool.pylint.FORMAT]
+max-line-length = 88
+
+[tool.pylint.MESSAGES_CONTROL]
+disable = [
+    "missing-docstring",
+    "invalid-name",
+    "too-few-public-methods",
+    "too-many-arguments",
+    "too-many-locals",
+    "too-many-branches",
+    "too-many-statements",
+    "duplicate-code",
+    "import-error",
+    "no-member",
+]
+
+[tool.pylint.DESIGN]
+max-args = 10
+max-attributes = 15
+max-public-methods = 25
