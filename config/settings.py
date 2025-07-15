@@ -12,59 +12,101 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 import os
 from pathlib import Path
-from datetime import timedelta
+from decouple import config, Csv
+from django.core.management.utils import get_random_secret_key
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# 環境変数の設定（python-decouple使用）
-try:
-    from decouple import config
-except ImportError:
-    # decouple がない場合のフォールバック
-    config = lambda key, default=None, cast=str: os.environ.get(key, default)
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
+# SECURITY SETTINGS
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config("SECRET_KEY", default="django-insecure-w&$-(&b08y7tiqy!das1+xovq-hc+!*ynmgi$@n@^b-+^)b(#$")
+SECRET_KEY = config("SECRET_KEY", default=get_random_secret_key)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config("DEBUG", default=True, cast=bool)
+DEBUG = config("DEBUG", default=False, cast=bool)
 
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="*").split(",")
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv())
+
+# Security settings
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
+
+# Production security settings (enabled when DEBUG=False)
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_RELOAD = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
 
 # Application definition
-INSTALLED_APPS = [
+
+DJANGO_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    # プロジェクト固有のアプリケーション
-    "accounts",
-    "goals",
-    "tickets",
-    "emotions",
-    "journal",
-    "analytics",
-    "teacher_support",
-    "notifications",
-    "gamification",
-    "core",
 ]
+
+THIRD_PARTY_APPS = [
+    "ninja",
+    "ninja_extra",
+    "ninja_jwt",
+    "corsheaders",
+    "django_celery_beat",
+    "django_celery_results",
+    "channels",
+    "django_extensions",
+    "django_filters",
+]
+
+LOCAL_APPS = [
+    "accounts.apps.AccountsConfig",
+    "goals.apps.GoalsConfig",
+    "tickets.apps.TicketsConfig",
+    "emotions.apps.EmotionsConfig",
+    "journal.apps.JournalConfig",
+    "analytics.apps.AnalyticsConfig",
+    "teacher_support.apps.TeacherSupportConfig",
+    "notifications.apps.NotificationsConfig",
+    "gamification.apps.GamificationConfig",
+    "core.apps.CoreConfig",
+]
+
+if DEBUG:
+    THIRD_PARTY_APPS += [
+        "debug_toolbar",
+        "silk",
+    ]
+
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+
+# MIDDLEWARE CONFIGURATION
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_ratelimit.middleware.RatelimitMiddleware",
 ]
+
+# Development middleware
+if DEBUG:
+    MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
+    MIDDLEWARE.append("silk.middleware.SilkyMiddleware")
 
 ROOT_URLCONF = "config.urls"
 
@@ -85,40 +127,36 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "config.wsgi.application"
+ASGI_APPLICATION = "config.asgi.application"
+
 
 # Database
-# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": config("DB_NAME", default="learning_companion"),
+        "NAME": config("DB_NAME", default="intellectual-partner"),
         "USER": config("DB_USER", default="postgres"),
         "PASSWORD": config("DB_PASSWORD", default="password"),
         "HOST": config("DB_HOST", default="localhost"),
-        "PORT": config("DB_PORT", default="5432"),
+        "PORT": config("DB_PORT", default="5432", cast=int),
+        "OPTIONS": {
+            "charset": "utf8",
+        },
     }
 }
 
-# 開発環境ではSQLiteを使用
-if DEBUG:
+# SQLite for development (fallback)
+if config("USE_SQLITE", default=False, cast=bool):
     DATABASES["default"] = {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
     }
 
-# Redis設定
+# CACHES & REDIS
+
 REDIS_URL = config("REDIS_URL", default="redis://localhost:6379/0")
 
-# Celery設定
-CELERY_BROKER_URL = config("CELERY_BROKER_URL", default=REDIS_URL)
-CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default=REDIS_URL)
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TASK_SERIALIZER = "json"
-CELERY_RESULT_SERIALIZER = "json"
-CELERY_TIMEZONE = "Asia/Tokyo"
-
-# キャッシュ設定
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
@@ -126,11 +164,39 @@ CACHES = {
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
+        "KEY_PREFIX": "intellectual_partner",
+        "TIMEOUT": 300,
     }
 }
 
+# Session backend
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
+
+# CELERY CONFIGURATION
+
+CELERY_BROKER_URL = config("CELERY_BROKER_URL", default=REDIS_URL)
+CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default=REDIS_URL)
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "Asia/Tokyo"
+CELERY_ENABLE_UTC = True
+
+# Celery Beat settings
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+
+# CHANNELS (WebSocket)
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [REDIS_URL],
+        },
+    },
+}
+
 # Password validation
-# https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -147,37 +213,125 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+
 # Internationalization
-# https://docs.djangoproject.com/en/5.1/topics/i18n/
 
 LANGUAGE_CODE = config("LANGUAGE_CODE", default="ja")
 TIME_ZONE = config("TIME_ZONE", default="Asia/Tokyo")
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = "/static/"
+# Static files (CSS, JavaScript, Images)
+
+STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
 
-# Media files
+# WhiteNoise settings
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# MEDIA FILES
+
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
+# EMAIL CONFIGURATION
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-# メール設定
 EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
 
-# Sentry設定（本番環境用）
-SENTRY_DSN = config("SENTRY_DSN", default=None)
+# Production email settings
+if not DEBUG:
+    EMAIL_BACKEND = "anymail.backends.sendgrid.EmailBackend"
+    ANYMAIL = {
+        "SENDGRID_API_KEY": config("SENDGRID_API_KEY", default=""),
+    }
+
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@learning-companion.com")
+
+
+# LOGGING
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "file": {
+            "level": "INFO",
+            "class": "logging.FileHandler",
+            "filename": BASE_DIR / "logs" / "django.log",
+            "formatter": "verbose",
+        },
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
+            "propagate": True,
+        },
+        "learning_companion": {
+            "handlers": ["file", "console"],
+            "level": "DEBUG",
+            "propagate": True,
+        },
+    },
+}
+
+
+# DJANGO NINJA API
+
+NINJA_PAGINATION_CLASS = "ninja.pagination.LimitOffsetPagination"
+NINJA_PAGINATION_PER_PAGE = 20
+
+
+# CORS SETTINGS
+
+CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="http://localhost:3000,http://127.0.0.1:3000", cast=Csv())
+
+CORS_ALLOW_CREDENTIALS = True
+
+
+# DJANGO NINJA JWT
+
+from datetime import timedelta
+
+NINJA_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+}
+
+
+# RATE LIMITING
+
+RATELIMIT_ENABLE = True
+RATELIMIT_USE_CACHE = "default"
+
+# SENTRY (Error Monitoring)
+
+SENTRY_DSN = config("SENTRY_DSN", default="")
+
 if SENTRY_DSN and not DEBUG:
     import sentry_sdk
     from sentry_sdk.integrations.django import DjangoIntegration
@@ -189,52 +343,49 @@ if SENTRY_DSN and not DEBUG:
             DjangoIntegration(),
             CeleryIntegration(),
         ],
-        traces_sample_rate=1.0,
+        traces_sample_rate=0.1,
         send_default_pii=True,
     )
 
-# ログ設定
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "verbose": {
-            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
-            "style": "{",
-        },
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
-        },
-    },
-    "root": {
-        "handlers": ["console"],
-        "level": "INFO",
-    },
-    "loggers": {
-        "django": {
-            "handlers": ["console"],
-            "level": "INFO",
-            "propagate": False,
-        },
-        "intellectual_partner": {
-            "handlers": ["console"],
-            "level": "DEBUG" if DEBUG else "INFO",
-            "propagate": False,
-        },
-    },
+
+# CUSTOM SETTINGS
+
+# 学習支援アプリ固有の設定
+LEARNING_COMPANION_SETTINGS = {
+    "MAX_GOALS_PER_USER": config("MAX_GOALS_PER_USER", default=50, cast=int),
+    "MAX_TICKETS_PER_GOAL": config("MAX_TICKETS_PER_GOAL", default=100, cast=int),
+    "DEFAULT_STUDY_SESSION_DURATION": config("DEFAULT_STUDY_SESSION_DURATION", default=25, cast=int),  # minutes
+    "NOTIFICATION_BATCH_SIZE": config("NOTIFICATION_BATCH_SIZE", default=100, cast=int),
+    "ANALYTICS_RETENTION_DAYS": config("ANALYTICS_RETENTION_DAYS", default=365, cast=int),
+    "ENABLE_GAMIFICATION": config("ENABLE_GAMIFICATION", default=True, cast=bool),
+    "ENABLE_TEACHER_SUPPORT": config("ENABLE_TEACHER_SUPPORT", default=True, cast=bool),
 }
 
-# セキュリティ設定
-if not DEBUG:
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = "DENY"
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
+# DEVELOPMENT SETTINGS
+
+if DEBUG:
+    # Debug toolbar settings
+    INTERNAL_IPS = [
+        "127.0.0.1",
+        "localhost",
+    ]
+
+    # Django Extensions
+    SHELL_PLUS_PRINT_SQL = True
+    SHELL_PLUS_PRINT_SQL_TRUNCATE = 1000
+
+
+# DEFAULT PRIMARY KEY FIELD TYPE
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# AUTHENTICATION
+
+AUTH_USER_MODEL = "accounts.User"
+
+# FILE UPLOAD SETTINGS
+
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2.5 MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2.5 MB
+FILE_UPLOAD_PERMISSIONS = 0o644
