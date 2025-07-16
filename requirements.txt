@@ -85,7 +85,6 @@ sentry-sdk==2.19.0
 
 # 本番環境
 gunicorn==23.0.0
-whitenoise==6.8.2
 django-health-check==3.18.3
 gevent==24.10.3
 
@@ -149,7 +148,7 @@ python-dotenv==1.0.1
 # boto3==1.35.71  # AWS S3用
 
 # API文書化
-# django-spectacular==0.27.2
+django-spectacular==0.27.2
 
 # 高度な認証
 # django-oauth-toolkit==2.3.0
@@ -167,6 +166,3 @@ python-dotenv==1.0.1
 # 高度なキャッシュ
 # django-cachalot==2.6.3
 
-# 高度な管理画面
-# django-admin-interface==0.28.8
-# django-unfold==0.35.0
