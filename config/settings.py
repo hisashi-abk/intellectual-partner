@@ -248,6 +248,9 @@ DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@learning-comp
 
 # LOGGING
 
+log_dir = BASE_DIR / "logs"
+log_dir.mkdir(exist_ok=True)  # ディレクトリが存在しない場合は作成
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
