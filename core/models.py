@@ -24,7 +24,7 @@ class TimeStampedModel(models.Model):
 
 class SoftDeleteModel(models.Model):
     """
-    Abstract base class that provides soft delete functionally.
+    Abstract base class that provides soft delete functionality.
     """
 
     is_deleted = models.BooleanField(default=False, verbose_name="削除フラグ")
@@ -48,7 +48,7 @@ class SoftDeleteModel(models.Model):
 
 class BaseModel(TimeStampedModel, SoftDeleteModel):
     """
-    Base model that combines timestamp and soft delete functionally.
+    Base model that combines timestamp and soft delete functionality.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=True)

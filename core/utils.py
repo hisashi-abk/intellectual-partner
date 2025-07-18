@@ -1,5 +1,5 @@
 """
-Common utilities for the learning companion application.
+Common utilities for the intellectual partner application.
 """
 
 import hashlib
