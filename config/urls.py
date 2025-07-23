@@ -1,23 +1,65 @@
 """
-URL configuration for config project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.1/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+WebSocket routing configuration for Intellectual Partner
 """
 
-from django.contrib import admin
-from django.urls import path
+from django.urls import re_path
+from channels.routing import URLRouter
 
-urlpatterns = [
-    path("admin/", admin.site.urls),
+# WebSocket コンシューマーのインポート
+from notifications.consumers import (
+    NotificationConsumer,
+    TeacherDashboardConsumer,
+    StudySessionConsumer,
+)
+from analytics.consumers import (
+    AnalyticsConsumer,
+    RealTimeAnalyticsConsumer,
+)
+
+# WebSocket URL パターン
+websocket_urlpatterns = [
+    # 通知関連WebSocket
+    re_path(r"ws/notifications/(?P<user_id>\w+)/$", NotificationConsumer.as_asgi(), name="notifications_ws"),
+    # 教師ダッシュボード用WebSocket
+    re_path(
+        r"ws/teacher/dashboard/(?P<teacher_id>\w+)/$", TeacherDashboardConsumer.as_asgi(), name="teacher_dashboard_ws"
+    ),
+    # 学習セッション用WebSocket（リアルタイム進捗更新）
+    re_path(r"ws/study-session/(?P<session_id>\w+)/$", StudySessionConsumer.as_asgi(), name="study_session_ws"),
+    # 分析データリアルタイム更新
+    re_path(r"ws/analytics/(?P<user_id>\w+)/$", AnalyticsConsumer.as_asgi(), name="analytics_ws"),
+    # リアルタイム分析（集中度など）
+    re_path(
+        r"ws/realtime-analytics/(?P<user_id>\w+)/$", RealTimeAnalyticsConsumer.as_asgi(), name="realtime_analytics_ws"
+    ),
 ]
+
+# 開発環境用のWebSocketパス（デバッグ用）
+development_websocket_patterns = [
+    re_path(r"ws/debug/(?P<room_name>\w+)/$", NotificationConsumer.as_asgi(), name="debug_ws"),  # デバッグ用に流用
+]
+
+# 本番環境とテスト環境を分離
+from django.conf import settings
+
+if settings.DEBUG:
+    websocket_urlpatterns.extend(development_websocket_patterns)
+
+
+# WebSocketミドルウェア設定（将来的な拡張用）
+class WebSocketRateLimitMiddleware:
+    """WebSocketの接続数制限ミドルウェア"""
+
+    def __init__(self, inner):
+        self.inner = inner
+
+    async def __call__(self, scope, receive, send):
+        # レート制限ロジック（将来実装）
+        # 現在はそのまま通す
+        return await self.inner(scope, receive, send)
+
+
+# カスタムWebSocketミドルウェアスタック
+def WebSocketMiddlewareStack(inner):
+    """カスタムWebSocketミドルウェアスタック"""
+    return WebSocketRateLimitMiddleware(inner)
