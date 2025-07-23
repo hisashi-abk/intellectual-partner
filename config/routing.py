@@ -44,7 +44,7 @@ websocket_urlpatterns = [
     ),
     # リアルタイム分析 (集中度など)
     re_path(
-        r"ws/realtime-analytics/(?<user_id>\w+)/$",
+        r"ws/realtime-analytics/(?P<user_id>\w+)/$",
         RealTimeAnalyticsConsumer.as_asgi(),
         name="realtime_analytics_ws",
     ),
