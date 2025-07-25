@@ -147,7 +147,7 @@ flowchart TD
 ### 5.1 推奨Django アプリケーション構成
 
 ```
-learning_companion/
+intellectual_partner/
 ├── config/              # プロジェクト設定
 ├── accounts/            # ユーザー認証・プロフィール
 ├── goals/               # 目標管理（階層化）

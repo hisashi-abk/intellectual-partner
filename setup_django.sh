@@ -31,7 +31,7 @@ SECRET_KEY=your-secret-key-here-change-in-production
 DJANGO_SETTINGS_MODULE=config.settings
 
 # データベース設定
-DB_NAME=learning_companion
+DB_NAME=intellectual_partner
 DB_USER=postgres
 DB_PASSWORD=password
 DB_HOST=localhost

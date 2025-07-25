@@ -33,6 +33,8 @@ ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv(
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
 # Production security settings (enabled when DEBUG=False)
 if not DEBUG:
@@ -42,6 +44,11 @@ if not DEBUG:
     SECURE_HSTS_RELOAD = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    CSP_DEFAULT_SRC = ("'self'",)
+    CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'")
+    CSP_STYLE_SRC = ("'self'", "'unsafe-inline'")
+    CSP_IMG_SRC = ("'self'", "data:", "https:")
+    CSP_CONNECT_SRC = ("'self'", "wss:", "ws:")
 
 
 # Application definition
@@ -142,6 +149,8 @@ DATABASES = {
         "OPTIONS": {
             "charset": "utf8",
         },
+        "CONN_MAX_AGE": 600,  # 接続プール
+        "CONN_HEALTH_CHECKS": True,
     }
 }
 
@@ -243,7 +252,7 @@ if not DEBUG:
         "SENDGRID_API_KEY": config("SENDGRID_API_KEY", default=""),
     }
 
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@learning-companion.com")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@intellectual-partner.com")
 
 
 # LOGGING
@@ -263,6 +272,10 @@ LOGGING = {
             "format": "{levelname} {message}",
             "style": "{",
         },
+        "json": {
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime)s %(name)s %(levelname)s %(message)s",
+        },
     },
     "handlers": {
         "file": {
@@ -270,11 +283,21 @@ LOGGING = {
             "class": "logging.FileHandler",
             "filename": BASE_DIR / "logs" / "django.log",
             "formatter": "verbose",
+            "maxBytes": 1024 * 1024 * 15,  # 15MB
+            "backupCount": 10,
         },
         "console": {
             "level": "DEBUG",
             "class": "logging.StreamHandler",
             "formatter": "simple",
+        },
+        "celery_file": {
+            "level": "INFO",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": BASE_DIR / "logs" / "celery.log",
+            "formatter": "verbose",
+            "maxBytes": 1024 * 1024 * 15,
+            "backupCount": 5,
         },
     },
     "loggers": {
@@ -283,9 +306,19 @@ LOGGING = {
             "level": "INFO",
             "propagate": True,
         },
-        "learning_companion": {
+        "intellectual_partner": {
             "handlers": ["file", "console"],
             "level": "DEBUG",
+            "propagate": True,
+        },
+        "celery": {
+            "handlers": ["celery_file", "console"],
+            "level": "INFO",
+            "propagate": True,
+        },
+        "channels": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
             "propagate": True,
         },
     },
@@ -372,7 +405,7 @@ if SENTRY_DSN and not DEBUG:
 # CUSTOM SETTINGS
 
 # 学習支援アプリ固有の設定
-LEARNING_COMPANION_SETTINGS = {
+INTELLECTUAL_PARTNER_SETTINGS = {
     "MAX_GOALS_PER_USER": config("MAX_GOALS_PER_USER", default=50, cast=int),
     "MAX_TICKETS_PER_GOAL": config("MAX_TICKETS_PER_GOAL", default=100, cast=int),
     "DEFAULT_STUDY_SESSION_DURATION": config("DEFAULT_STUDY_SESSION_DURATION", default=25, cast=int),  # minutes
@@ -424,4 +457,58 @@ API_SETTINGS = {
     "MAX_PAGE_SIZE": 100,
     "DEFAULT_PAGE_SIZE": 20,
     "ENABLE_API_DOCS": DEBUG,  # 開発時のみAPIドキュメント有効
+}
+
+# レート制限設定
+RATELIMIT_DECORATORS = {
+    "login": "5/m",
+    "api_general": "100/h",
+    "api_heavy": "10/m",
+    "websocket": "60/m",
+}
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "CONNECTION_POOL_KWARGS": {
+                "max_connections": 50,
+                "retry_on_timeout": True,
+            },
+            "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
+            "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
+        },
+        "KEY_PREFIX": "intellectual_partner",
+        "TIMEOUT": 300,
+    },
+    "sessions": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": config("REDIS_SESSIONS_URL", default=f"{REDIS_URL}/1"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+        "KEY_PREFIX": "sessions",
+        "TIMEOUT": 86400,  # 24時間
+    },
+}
+
+# WebSocket設定
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [config("REDIS_WEBSOCKET_URL", default=f"{REDIS_URL}/2")],
+            "prefix": "intellectual_partner",
+            "expiry": 60,
+            "group_expiry": 86400,
+            "capacity": 100,
+            "channel_capacity": {
+                "http.request": 200,
+                "http.response!*": 10,
+                "websocket.send!*": 20,
+            },
+        },
+    },
 }
